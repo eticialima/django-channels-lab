@@ -23,6 +23,20 @@
                     <div class="card-body">
                         <h4 class="card-title text-center mb-4">Enter Support Chat</h4>
                         
+                        <!-- Reconnect option if previous session exists -->
+                        <div id="reconnectOption" style="display: none;" class="alert alert-info mb-3">
+                            <p class="mb-2">
+                                <i class="bi bi-info-circle"></i> 
+                                You have a previous support chat session. Would you like to continue it?
+                            </p>
+                            <button type="button" class="btn btn-sm btn-info" id="reconnectBtn">
+                                Reconnect to Previous Chat
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="newChatBtn">
+                                Start New Chat
+                            </button>
+                        </div>
+                        
                         <form id="usernameForm">
                             <div class="mb-3">
                                 <label for="usernameInput" class="form-label">Your Name:</label>
@@ -103,8 +117,40 @@
                 this.messageInput = document.getElementById('messageInput');
                 this.sendBtn = document.getElementById('sendBtn');
                 this.connectionStatus = document.getElementById('connectionStatus');
+                this.reconnectOption = document.getElementById('reconnectOption');
+                this.reconnectBtn = document.getElementById('reconnectBtn');
+                this.newChatBtn = document.getElementById('newChatBtn');
 
                 this.setupEventListeners();
+                this.checkForPreviousSession();
+            }
+
+            checkForPreviousSession() {
+                const previousClientId = localStorage.getItem('support_client_id');
+                if (previousClientId) {
+                    // Show reconnect option
+                    this.reconnectOption.style.display = 'block';
+                    this.usernameForm.style.display = 'none';
+                    
+                    this.reconnectBtn.addEventListener('click', () => this.reconnectToSession(previousClientId));
+                    this.newChatBtn.addEventListener('click', () => this.startNewChat());
+                }
+            }
+
+            startNewChat() {
+                localStorage.removeItem('support_client_id');
+                this.reconnectOption.style.display = 'none';
+                this.usernameForm.style.display = 'block';
+                this.usernameInput.focus();
+            }
+
+            reconnectToSession(clientId) {
+                console.log(`Attempting to reconnect to session ${clientId}`);
+                this.clientId = clientId;
+                // Directly show chat section and connect
+                this.loginSection.style.display = 'none';
+                this.chatSection.style.display = 'block';
+                this.connectWebSocket();
             }
 
             setupEventListeners() {
@@ -136,11 +182,20 @@
                 console.log('Connected to support');
                 this.isConnected = true;
                 
-                // Send join message
-                this.socket.send(JSON.stringify({
-                    type: 'client_join',
-                    username: this.username,
-                }));
+                // Send join message only if this is a new session
+                if (!this.clientId) {
+                    this.socket.send(JSON.stringify({
+                        type: 'client_join',
+                        username: this.username,
+                    }));
+                } else {
+                    // Reconnecting to existing session
+                    console.log('Reconnected to existing session, notifying server');
+                    this.socket.send(JSON.stringify({
+                        type: 'client_reconnect',
+                        client_id: this.clientId,
+                    }));
+                }
 
                 // Show chat section
                 this.loginSection.style.display = 'none';
@@ -171,19 +226,19 @@
             }
 
             async loadMessageHistory() {
-                """Load previous messages from server."""
+                // Load previous messages from server
                 try {
                     const response = await fetch(`/chat/api/support/chat/${this.clientId}/messages/`);
                     const data = await response.json();
                     
                     if (data.success) {
                         console.log(`Loaded ${data.messages.length} previous messages`);
-                        // Limpa mensagens antigas (keep apenas system message)
+                        // Clear chat (keep system messages)
                         const systemMessages = Array.from(this.chatMessages.querySelectorAll('.message-system'));
                         this.chatMessages.innerHTML = '';
                         systemMessages.forEach(msg => this.chatMessages.appendChild(msg));
                         
-                        // Carrega mensagens antigas
+                        // Load old messages
                         data.messages.forEach(msg => {
                             if (msg.message_type === 'client') {
                                 this.displayMessage(msg.username, msg.content, 'client');
@@ -215,7 +270,7 @@
                 e.preventDefault();
                 const message = this.messageInput.value.trim();
 
-                if (message && this.isConnected) {
+                if (message && this.isConnected && this.clientId) {
                     console.log(`Sending message: ${message}`);
                     this.socket.send(JSON.stringify({
                         type: 'client_message',
@@ -226,6 +281,8 @@
                     this.messageInput.focus();
                 } else if (!this.isConnected) {
                     console.error('Not connected to server');
+                } else if (!this.clientId) {
+                    console.error('Client ID not set');
                 }
             }
 

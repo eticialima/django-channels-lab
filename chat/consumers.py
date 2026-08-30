@@ -127,6 +127,41 @@ class SupportConsumer(AsyncWebsocketConsumer):
             }))
             print(f"DEBUG: Connection confirmation sent to {self.username}")
 
+        elif message_type == 'client_reconnect':
+            # Client reconnecting to previous session
+            client_id = data.get('client_id')
+            print(f"DEBUG: Client reconnecting to session {client_id}")
+            
+            try:
+                self.client_session = await self.get_client_session(client_id)
+                if self.client_session:
+                    self.username = self.client_session.client_name
+                    # Reactivate session
+                    await self.reactivate_session()
+                    
+                    # Add to private room
+                    private_room = f'support_chat_{self.client_session.id}'
+                    await self.channel_layer.group_add(private_room, self.channel_name)
+                    
+                    # Send confirmation
+                    await self.send(text_data=json.dumps({
+                        'type': 'connection_established',
+                        'client_id': str(self.client_session.id),
+                        'message': 'Reconnected to support chat',
+                    }))
+                    print(f"DEBUG: Reconnection confirmed for {self.username}")
+                else:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': 'Session not found',
+                    }))
+            except Exception as e:
+                print(f"ERROR during reconnect: {e}")
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': f'Failed to reconnect: {str(e)}',
+                }))
+
         elif message_type == 'client_message':
             # Client sends message
             message = data.get('message')
@@ -246,6 +281,13 @@ class SupportConsumer(AsyncWebsocketConsumer):
         """Mark session as inactive."""
         if self.client_session:
             self.client_session.is_active = False
+            self.client_session.save()
+
+    @database_sync_to_async
+    def reactivate_session(self):
+        """Reactivate a session when client reconnects."""
+        if self.client_session:
+            self.client_session.is_active = True
             self.client_session.save()
 
     @database_sync_to_async
