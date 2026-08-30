@@ -53,6 +53,13 @@
                                     <div>{{ message.content }}</div>
                                 </div>
                             {% endfor %}
+                            
+                            <!-- Show offline warning if client is not active -->
+                            {% if not client_session.is_active %}
+                                <div class="message message-system">
+                                    <i class="bi bi-exclamation-triangle"></i> This client is offline. Chat is read-only.
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -62,12 +69,14 @@
                                 type="text" 
                                 id="messageInput" 
                                 class="form-control rounded-pill" 
-                                placeholder="Type your response..."
+                                placeholder="{% if client_session.is_active %}Type your response...{% else %}Client is offline{% endif %}"
+                                {% if not client_session.is_active %}disabled{% endif %}
                             >
                             <button 
                                 type="submit" 
                                 class="btn btn-primary rounded-pill" 
                                 id="sendBtn"
+                                {% if not client_session.is_active %}disabled{% endif %}
                             >
                                 Send
                             </button>
@@ -95,12 +104,9 @@
 
                 this.setupEventListeners();
                 
-                // Check if client is active
+                // Don't connect WebSocket if client is offline
                 if (!this.isClientActive) {
-                    this.displaySystemMessage('This client is offline. Chat is read-only.');
-                    this.messageInput.disabled = true;
-                    this.sendBtn.disabled = true;
-                    // Don't connect WebSocket if client is offline
+                    console.log('Client is offline, WebSocket not connected');
                     return;
                 }
                 
@@ -232,7 +238,7 @@
         }
 
         // Initialize
-        const adminChat = new AdminChat('{{ client_session.id }}');
+        const adminChat = new AdminChat('{{ client_session.id }}', {% if client_session.is_active %}true{% else %}false{% endif %});
     </script>
 </body>
 </html>

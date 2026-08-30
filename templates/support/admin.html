@@ -64,8 +64,9 @@
                                             <i class="bi bi-activity"></i> Last activity: {{ client.last_activity|date:"M d, H:i" }}
                                         </p>
                                         <a href="{% url 'chat:support_admin_chat' client.id %}" 
-                                           class="btn btn-sm btn-primary w-100">
-                                            <i class="bi bi-chat-dots"></i> Open Chat
+                                           class="btn btn-sm {% if client.is_active %}btn-primary{% else %}btn-secondary{% endif %} w-100">
+                                            <i class="bi bi-{% if client.is_active %}chat-dots{% else %}book{% endif %}"></i> 
+                                            {% if client.is_active %}Open Chat{% else %}View History{% endif %}
                                         </a>
                                     </div>
                                 </div>
