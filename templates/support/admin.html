@@ -22,16 +22,62 @@
     </nav>
 
     <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-lg-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">Support Clients</h2>
+                    <div class="d-flex gap-3">
+                        <span class="badge bg-success fs-6">
+                            <i class="bi bi-circle-fill"></i> Active: {{ active_count }}
+                        </span>
+                        <span class="badge bg-secondary fs-6">
+                            <i class="bi bi-circle"></i> Total: {{ clients.count }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-lg-12">
-                <h2 class="mb-4">Active Clients</h2>
-
                 <div id="clientsList" class="row">
-                    <!-- Clients will be populated here -->
-                </div>
-
-                <div id="noClientsMessage" class="alert alert-info" style="display: none;">
-                    <i class="bi bi-info-circle"></i> No active clients at the moment.
+                    {% if clients %}
+                        {% for client in clients %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card shadow-sm {% if not client.is_active %}opacity-75{% endif %}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title mb-0">
+                                                <i class="bi bi-person-circle"></i> {{ client.client_name }}
+                                            </h5>
+                                            <span class="badge {% if client.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                                {% if client.is_active %}
+                                                    <i class="bi bi-circle-fill"></i> Online
+                                                {% else %}
+                                                    <i class="bi bi-circle"></i> Offline
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <p class="card-text text-muted small mb-3">
+                                            <i class="bi bi-clock"></i> Connected: {{ client.connected_at|date:"M d, H:i" }}
+                                            <br>
+                                            <i class="bi bi-activity"></i> Last activity: {{ client.last_activity|date:"M d, H:i" }}
+                                        </p>
+                                        <a href="{% url 'chat:support_admin_chat' client.id %}" 
+                                           class="btn btn-sm btn-primary w-100">
+                                            <i class="bi bi-chat-dots"></i> Open Chat
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> No support clients yet.
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -41,10 +87,6 @@
         class AdminDashboard {
             constructor() {
                 this.socket = null;
-                this.clientsList = document.getElementById('clientsList');
-                this.noClientsMessage = document.getElementById('noClientsMessage');
-                this.clients = {};
-
                 this.connectWebSocket();
             }
 
@@ -60,25 +102,23 @@
             }
 
             onOpen() {
-                console.log('Admin connected');
-                // Request list of active clients
-                this.socket.send(JSON.stringify({
-                    type: 'admin_get_clients',
-                }));
+                console.log('Admin dashboard connected to WebSocket');
             }
 
             onMessage(event) {
                 const data = JSON.parse(event.data);
+                console.log('Admin received:', data);
 
                 switch (data.type) {
-                    case 'clients_list':
-                        this.updateClientsList(data.clients);
-                        break;
                     case 'new_client_joined':
-                        this.addClient(data.client_id, data.client_name);
+                        console.log(`New client joined: ${data.client_name}`);
+                        // Reload page to show new client
+                        location.reload();
                         break;
                     case 'client_disconnected':
-                        this.removeClient(data.client_id);
+                        console.log(`Client disconnected: ${data.client_name}`);
+                        // Could update badge to "Offline" without reload, but reload is simpler
+                        location.reload();
                         break;
                     default:
                         console.warn('Unknown message type:', data.type);
@@ -86,83 +126,19 @@
             }
 
             onClose() {
-                console.log('Admin disconnected');
+                console.log('Admin dashboard disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(() => this.connectWebSocket(), 3000);
             }
 
             onError(error) {
                 console.error('WebSocket error:', error);
             }
-
-            updateClientsList(clients) {
-                this.clientsList.innerHTML = '';
-                this.clients = {};
-
-                if (clients.length === 0) {
-                    this.noClientsMessage.style.display = 'block';
-                } else {
-                    this.noClientsMessage.style.display = 'none';
-                    clients.forEach(client => {
-                        this.addClientCard(client.id, client.name, client.connected_at);
-                    });
-                }
-            }
-
-            addClient(clientId, clientName) {
-                if (!this.clients[clientId]) {
-                    this.clients[clientId] = { name: clientName };
-                    this.addClientCard(clientId, clientName, new Date().toISOString());
-                    this.noClientsMessage.style.display = 'none';
-                }
-            }
-
-            addClientCard(clientId, clientName, connectedAt) {
-                const colDiv = document.createElement('div');
-                colDiv.className = 'col-md-6 col-lg-4 mb-3';
-                colDiv.id = `client-${clientId}`;
-
-                const date = new Date(connectedAt);
-                const timeStr = date.toLocaleTimeString();
-
-                colDiv.innerHTML = `
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h6 class="card-title text-truncate">
-                                <i class="bi bi-person-circle"></i> ${this.escapeHtml(clientName)}
-                            </h6>
-                            <small class="text-muted d-block mb-3">
-                                Connected: ${timeStr}
-                            </small>
-                            <a href="/support/admin/${clientId}/" class="btn btn-primary btn-sm w-100">
-                                <i class="bi bi-chat-dots"></i> Open Chat
-                            </a>
-                        </div>
-                    </div>
-                `;
-
-                this.clientsList.appendChild(colDiv);
-            }
-
-            removeClient(clientId) {
-                const clientEl = document.getElementById(`client-${clientId}`);
-                if (clientEl) {
-                    clientEl.remove();
-                    delete this.clients[clientId];
-                }
-
-                if (Object.keys(this.clients).length === 0) {
-                    this.noClientsMessage.style.display = 'block';
-                }
-            }
-
-            escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
         }
 
         // Initialize
-        const admin = new AdminDashboard();
+        // Initialize
+        const adminDashboard = new AdminDashboard();
     </script>
 </body>
 </html>

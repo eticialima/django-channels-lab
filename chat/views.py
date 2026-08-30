@@ -13,11 +13,16 @@ def support_client(request):
 
 @staff_member_required
 def support_admin(request):
-    """Admin dashboard showing all connected clients."""
-    active_clients = ClientSession.objects.filter(is_active=True).order_by('-connected_at')
+    """Admin dashboard showing all clients (active and inactive)."""
+    # Get all clients, active first, then ordered by most recent
+    all_clients = ClientSession.objects.all().order_by('-is_active', '-connected_at')
+    
+    # Count active clients
+    active_count = ClientSession.objects.filter(is_active=True).count()
     
     return render(request, 'support/admin.html', {
-        'clients': active_clients
+        'clients': all_clients,
+        'active_count': active_count,
     })
 
 

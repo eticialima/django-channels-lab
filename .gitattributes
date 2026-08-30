@@ -1,0 +1,8 @@
+# Exclude HTML files from GitHub language statistics
+*.html linguist-vendored
+
+# Exclude static files from GitHub language statistics
+static/** linguist-vendored
+
+# Mark Python as the main language
+*.py linguist-language=Python

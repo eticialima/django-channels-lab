@@ -109,3 +109,13 @@ body {
         height: 300px;
     }
 }
+
+/* Admin dashboard client cards */
+.opacity-75 {
+    opacity: 0.75;
+}
+
+.opacity-75:hover {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}

@@ -32,7 +32,15 @@
                             <h5 class="mb-0">
                                 <i class="bi bi-person-circle"></i> {{ client_session.client_name }}
                             </h5>
-                            <span id="connectionStatus" class="badge bg-success">Connected</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span id="connectionStatus" class="badge {% if client_session.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if client_session.is_active %}
+                                        <i class="bi bi-circle-fill"></i> Online
+                                    {% else %}
+                                        <i class="bi bi-circle"></i> Offline
+                                    {% endif %}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     
@@ -72,8 +80,9 @@
 
     <script>
         class AdminChat {
-            constructor(clientId) {
+            constructor(clientId, isClientActive) {
                 this.clientId = clientId;
+                this.isClientActive = isClientActive;
                 this.socket = null;
                 this.isConnected = false;
 
@@ -85,6 +94,16 @@
                 this.connectionStatus = document.getElementById('connectionStatus');
 
                 this.setupEventListeners();
+                
+                // Check if client is active
+                if (!this.isClientActive) {
+                    this.displaySystemMessage('This client is offline. Chat is read-only.');
+                    this.messageInput.disabled = true;
+                    this.sendBtn.disabled = true;
+                    // Don't connect WebSocket if client is offline
+                    return;
+                }
+                
                 this.connectWebSocket();
             }
 
