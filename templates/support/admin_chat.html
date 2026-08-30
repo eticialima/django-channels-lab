@@ -1,0 +1,212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with {{ client_session.client_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <a href="/support/admin/" class="text-decoration-none text-light">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </span>
+            <span class="text-light">
+                Chat with <strong>{{ client_session.client_name }}</strong>
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-person-circle"></i> {{ client_session.client_name }}
+                            </h5>
+                            <span id="connectionStatus" class="badge bg-success">Connected</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div id="chatMessages" class="chat-messages">
+                            <!-- Load previous messages -->
+                            {% for message in messages %}
+                                <div class="message message-{% if message.message_type == 'admin' %}other{% else %}user{% endif %}">
+                                    <div class="message-username">{{ message.username }}</div>
+                                    <div>{{ message.content }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-light">
+                        <form id="messageForm" class="d-flex gap-2">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                class="form-control rounded-pill" 
+                                placeholder="Type your response..."
+                            >
+                            <button 
+                                type="submit" 
+                                class="btn btn-primary rounded-pill" 
+                                id="sendBtn"
+                            >
+                                Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AdminChat {
+            constructor(clientId) {
+                this.clientId = clientId;
+                this.socket = null;
+                this.isConnected = false;
+
+                // DOM elements
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageForm = document.getElementById('messageForm');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.connectionStatus = document.getElementById('connectionStatus');
+
+                this.setupEventListeners();
+                this.connectWebSocket();
+            }
+
+            setupEventListeners() {
+                this.messageForm.addEventListener('submit', (e) => this.handleSendMessage(e));
+            }
+
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const url = `${protocol}//${window.location.host}/ws/support/chat/${this.clientId}/`;
+
+                this.socket = new WebSocket(url);
+                this.socket.onopen = () => this.onOpen();
+                this.socket.onmessage = (event) => this.onMessage(event);
+                this.socket.onclose = () => this.onClose();
+                this.socket.onerror = (error) => this.onError(error);
+            }
+
+            onOpen() {
+                console.log('Connected to client chat');
+                this.isConnected = true;
+                this.updateConnectionStatus(true);
+                this.messageInput.disabled = false;
+                this.scrollToBottom();
+            }
+
+            onMessage(event) {
+                const data = JSON.parse(event.data);
+                console.log('Admin received message from server:', data);
+
+                switch (data.type) {
+                    case 'chat_message':
+                        console.log(`Chat message: ${data.username} (${data.sender_type}): ${data.message}`);
+                        this.displayMessage(data.username, data.message, data.sender_type);
+                        break;
+                    default:
+                        console.warn('Unknown message type:', data.type);
+                }
+            }
+
+            onClose() {
+                console.log('Disconnected from client chat');
+                this.isConnected = false;
+                this.updateConnectionStatus(false);
+                this.messageInput.disabled = true;
+                this.sendBtn.disabled = true;
+            }
+
+            onError(error) {
+                console.error('WebSocket error:', error);
+                this.displaySystemMessage('Connection error.');
+            }
+
+            handleSendMessage(e) {
+                e.preventDefault();
+                const message = this.messageInput.value.trim();
+
+                if (message && this.isConnected) {
+                    console.log(`Admin sending message: ${message}`);
+                    this.socket.send(JSON.stringify({
+                        type: 'admin_message',
+                        message: message,
+                        client_id: this.clientId,
+                        admin_name: 'Support Admin',
+                    }));
+
+                    this.messageInput.value = '';
+                    this.messageInput.focus();
+                } else if (!this.isConnected) {
+                    console.error('Admin not connected to server');
+                }
+            }
+
+            displayMessage(username, content, senderType = 'client') {
+                console.log(`Admin displaying message: ${username} (${senderType}): ${content}`);
+                const messageEl = document.createElement('div');
+                const isOwnMessage = senderType === 'admin';
+                messageEl.className = `message ${isOwnMessage ? 'message-user' : 'message-other'}`;
+
+                messageEl.innerHTML = `
+                    <div class="message-username">${this.escapeHtml(username)}</div>
+                    <div>${this.escapeHtml(content)}</div>
+                `;
+
+                this.chatMessages.appendChild(messageEl);
+                this.scrollToBottom();
+            }
+
+            displaySystemMessage(text) {
+                const messageEl = document.createElement('div');
+                messageEl.className = 'message message-system';
+                messageEl.textContent = text;
+
+                this.chatMessages.appendChild(messageEl);
+                this.scrollToBottom();
+            }
+
+            scrollToBottom() {
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            updateConnectionStatus(isConnected) {
+                if (isConnected) {
+                    this.connectionStatus.textContent = 'Connected';
+                    this.connectionStatus.classList.remove('bg-danger');
+                    this.connectionStatus.classList.add('bg-success');
+                } else {
+                    this.connectionStatus.textContent = 'Disconnected';
+                    this.connectionStatus.classList.remove('bg-success');
+                    this.connectionStatus.classList.add('bg-danger');
+                }
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+
+        // Initialize
+        const adminChat = new AdminChat('{{ client_session.id }}');
+    </script>
+</body>
+</html>
