@@ -2,6 +2,10 @@
 
 A simple, educational Django project demonstrating real-time chat functionality using Django Channels and WebSockets.
 
+![preview1](./docs/Screenshot_1.png)
+
+![preview1](./docs/Screenshot_2.png)
+
 ## Project Overview
 
 This project showcases:

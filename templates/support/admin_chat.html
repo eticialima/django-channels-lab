@@ -40,7 +40,7 @@
                         <div id="chatMessages" class="chat-messages">
                             <!-- Load previous messages -->
                             {% for message in messages %}
-                                <div class="message message-{% if message.message_type == 'admin' %}other{% else %}user{% endif %}">
+                                <div class="message message-{% if message.message_type == 'admin' %}user{% else %}other{% endif %}">
                                     <div class="message-username">{{ message.username }}</div>
                                     <div>{{ message.content }}</div>
                                 </div>
@@ -119,6 +119,13 @@
                     case 'chat_message':
                         console.log(`Chat message: ${data.username} (${data.sender_type}): ${data.message}`);
                         this.displayMessage(data.username, data.message, data.sender_type);
+                        break;
+                    case 'chat_ended':
+                        console.log(`Client ${data.client_name} ended the chat`);
+                        this.displaySystemMessage(`${data.client_name} has ended the chat session.`);
+                        this.messageInput.disabled = true;
+                        this.sendBtn.disabled = true;
+                        this.updateConnectionStatus(false);
                         break;
                     default:
                         console.warn('Unknown message type:', data.type);

@@ -241,6 +241,30 @@ class SupportConsumer(AsyncWebsocketConsumer):
                     'error': str(e),
                 }))
 
+        elif message_type == 'client_end_chat':
+            # Client intentionally ends chat
+            print(f"DEBUG: Client {self.username} ending chat")
+            
+            if self.client_session:
+                # Mark session as inactive
+                await self.mark_session_inactive()
+                
+                # Notify admin that chat was ended
+                await self.channel_layer.group_send(
+                    f'support_chat_{self.client_session.id}',
+                    {
+                        'type': 'chat_ended',
+                        'client_id': str(self.client_session.id),
+                        'client_name': self.username,
+                    }
+                )
+                
+                # Send confirmation to client
+                await self.send(text_data=json.dumps({
+                    'type': 'chat_ended_confirmation',
+                    'message': 'Chat session ended',
+                }))
+
     # Message handlers for group sends
     async def chat_message(self, event):
         """Receive message from room group."""
@@ -263,6 +287,14 @@ class SupportConsumer(AsyncWebsocketConsumer):
         """Notify admin about client disconnection."""
         await self.send(text_data=json.dumps({
             'type': 'client_disconnected',
+            'client_id': event['client_id'],
+            'client_name': event['client_name'],
+        }))
+
+    async def chat_ended(self, event):
+        """Notify admin that client ended the chat."""
+        await self.send(text_data=json.dumps({
+            'type': 'chat_ended',
             'client_id': event['client_id'],
             'client_name': event['client_name'],
         }))

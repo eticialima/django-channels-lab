@@ -61,7 +61,12 @@
                     <div class="card-header bg-primary text-white">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Support Chat</h5>
-                            <span id="connectionStatus" class="badge bg-danger">Disconnected</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span id="connectionStatus" class="badge bg-danger">Disconnected</span>
+                                <button type="button" class="btn btn-sm btn-danger" id="endChatBtn">
+                                    End Chat
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -116,6 +121,7 @@
                 this.messageForm = document.getElementById('messageForm');
                 this.messageInput = document.getElementById('messageInput');
                 this.sendBtn = document.getElementById('sendBtn');
+                this.endChatBtn = document.getElementById('endChatBtn');
                 this.connectionStatus = document.getElementById('connectionStatus');
                 this.reconnectOption = document.getElementById('reconnectOption');
                 this.reconnectBtn = document.getElementById('reconnectBtn');
@@ -156,6 +162,34 @@
             setupEventListeners() {
                 this.usernameForm.addEventListener('submit', (e) => this.handleJoin(e));
                 this.messageForm.addEventListener('submit', (e) => this.handleSendMessage(e));
+                this.endChatBtn.addEventListener('click', () => this.handleEndChat());
+            }
+
+            handleEndChat() {
+                if (confirm('Are you sure you want to end this support chat?')) {
+                    console.log('Ending chat session');
+                    
+                    // Send end chat notification
+                    if (this.socket && this.isConnected) {
+                        this.socket.send(JSON.stringify({
+                            type: 'client_end_chat',
+                        }));
+                    }
+                    
+                    // Clear localStorage
+                    localStorage.removeItem('support_client_id');
+                    
+                    // Close connection
+                    if (this.socket) {
+                        this.socket.close();
+                    }
+                    
+                    // Show end message
+                    this.displaySystemMessage('Chat session ended. Thank you!');
+                    this.messageInput.disabled = true;
+                    this.sendBtn.disabled = true;
+                    this.endChatBtn.disabled = true;
+                }
             }
 
             handleJoin(e) {
@@ -213,6 +247,9 @@
                         // Salva o client_id no localStorage para reconnect depois
                         localStorage.setItem('support_client_id', this.clientId);
                         this.displaySystemMessage(data.message);
+                        // Habilita inputs
+                        this.messageInput.disabled = false;
+                        this.sendBtn.disabled = false;
                         // Carrega histórico anterior
                         this.loadMessageHistory();
                         break;
@@ -228,7 +265,7 @@
             async loadMessageHistory() {
                 // Load previous messages from server
                 try {
-                    const response = await fetch(`/chat/api/support/chat/${this.clientId}/messages/`);
+                    const response = await fetch(`/api/support/chat/${this.clientId}/messages/`);
                     const data = await response.json();
                     
                     if (data.success) {
