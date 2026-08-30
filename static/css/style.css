@@ -1,0 +1,104 @@
+/* Minimal custom styles - mostly Bootstrap */
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Chat messages container */
+.chat-messages {
+    height: 400px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Message animation */
+.message {
+    animation: slideIn 0.3s ease-in-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* User message (sent by current user) */
+.message-user {
+    background-color: #007bff;
+    color: white;
+    margin-left: auto;
+    width: fit-content;
+    max-width: 70%;
+    border-radius: 15px 15px 0 15px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Other users' messages */
+.message-other {
+    background-color: #e9ecef;
+    color: #333;
+    width: fit-content;
+    max-width: 70%;
+    border-radius: 15px 15px 15px 0;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* System messages */
+.message-system {
+    background-color: #fff3cd;
+    color: #856404;
+    text-align: center;
+    font-size: 0.9rem;
+    border-left: 3px solid #ffc107;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Message username */
+.message-username {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.9;
+}
+
+/* Connection status */
+#connectionStatus {
+    font-weight: 500;
+    animation: pulse 2s infinite;
+}
+
+#connectionStatus.connected {
+    background-color: #28a745 !important;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .chat-messages {
+        height: 300px;
+    }
+}

@@ -2,8 +2,9 @@
  * ChatWebSocket - Manages WebSocket connection and chat functionality
  */
 class ChatWebSocket {
-    constructor(roomName) {
+    constructor(roomName, displayName) {
         this.roomName = roomName;
+        this.displayName = displayName;
         this.socket = null;
         this.username = null;
         this.isConnected = false;
@@ -17,6 +18,22 @@ class ChatWebSocket {
 
         // Initialize
         this.init();
+    }
+
+    /**
+     * Convert text to URL-friendly slug format
+     * Example: "Leticia Teste1" -> "leticia-teste1"
+     */
+    static slugify(text) {
+        return text
+            .toLowerCase()
+            .trim()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove accents
+            .replace(/[^\w\s-]/g, '') // Remove special chars
+            .replace(/\s+/g, '-') // Replace spaces with hyphens
+            .replace(/-+/g, '-') // Replace multiple hyphens with single
+            .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
     }
 
     /**
@@ -50,8 +67,8 @@ class ChatWebSocket {
         this.isConnected = true;
         this.updateConnectionStatus(true);
 
-        // Get username from URL path
-        this.username = this.roomName;
+        // Use display name for messages
+        this.username = this.displayName;
 
         // Send join message
         this.socket.send(JSON.stringify({

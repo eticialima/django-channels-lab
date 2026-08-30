@@ -50,8 +50,18 @@
             const username = document.getElementById('usernameInput').value.trim();
             
             if (username) {
-                // Redirect to chat room with username as room name
-                window.location.href = `/room/${username}/`;
+                // Format username to URL-friendly slug
+                const roomName = username
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+                    .replace(/[^\w\s-]/g, '') // Remove special chars
+                    .replace(/\s+/g, '-') // Replace spaces with hyphens
+                    .replace(/-+/g, '-') // Replace multiple hyphens
+                    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+                
+                // Redirect to chat room with formatted room name
+                window.location.href = `/room/${roomName}/`;
             }
         });
     </script>
